@@ -1,132 +1,215 @@
-# CronosQuery ⭐
+# 🚀 CronosQuery ⭐
 
-A simple command-line interface for querying data from the Cronos EVM chain using the REST API at `https://rest.cronos.org/`.
+> **A beautiful, interactive CLI tool for querying Cronos EVM chain data with stunning formatted output!**
 
-## Features
+[![Python](https://img.shields.io/badge/Python-3.6+-blue.svg)](https://python.org)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Cronos](https://img.shields.io/badge/Chain-Cronos-orange.svg)](https://cronos.org)
 
-- Interactive module selection based on Cosmos SDK modules
-- Support for all major Cosmos SDK modules:
-  - **Authentication & Accounts** - Query account information
-  - **Bank & Balances** - Check token balances and supply
-  - **Governance** - View proposals, votes, and tallies
-  - **Staking** - Query validators, delegations, and staking pool
-  - **Distribution & Rewards** - Check rewards and commission
-  - **Slashing** - View slashing information
-  - **Minting** - Check inflation and annual provisions
-  - **Tendermint Core** - Query blocks, validators, and node info
+---
 
-## Installation
+## ✨ **What Makes CronosQuery Special?**
 
-1. Clone or download this repository
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+🎯 **Interactive & User-Friendly** - No more raw JSON dumps! Get beautifully formatted, emoji-rich output  
+🔍 **Comprehensive Coverage** - Query 8 major Cosmos SDK modules with 30+ endpoints  
+⚡ **Smart API Versioning** - Automatically uses correct API versions (v1 for gov, v1beta1 for others)  
+🛡️ **Robust Error Handling** - Graceful handling of network issues and invalid inputs  
+🎨 **Beautiful Output** - See your data in a human-readable format with percentages, formatting, and emojis  
 
-## Usage
+---
 
-Run the CLI tool:
+## 🎮 **Quick Start**
+
+### 📥 **Installation**
+
+```bash
+# Clone the repository
+git clone https://github.com/lezzokafka/cronosquery.git
+cd cronosquery
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+### 🚀 **Usage**
+
 ```bash
 python cronosquery.py
 ```
 
-The tool will guide you through an interactive process:
+**That's it!** The tool will guide you through an interactive journey:
 
-1. **Select Module**: Choose which Cosmos SDK module you want to query
-2. **Select Endpoint**: Choose the specific endpoint within that module
-3. **Enter Parameters**: Provide any required parameters (addresses, IDs, etc.)
-4. **View Results**: See the formatted JSON response
+1. 🎯 **Select Module** - Choose from 8 Cosmos SDK modules
+2. 🔧 **Select Endpoint** - Pick the specific query you want
+3. 📝 **Enter Parameters** - Provide addresses, IDs, or other required data
+4. 🎉 **Enjoy Beautiful Results** - See formatted, emoji-rich output!
 
-## Example Usage
+---
 
-### Querying a Governance Proposal Tally
+## 🌟 **Live Demo Examples**
 
-1. Run `python cronosquery.py`
-2. Select "Governance" module
-3. Select "Get proposal tally" endpoint
-4. Enter proposal number (e.g., "22")
-5. View the tally results
+### 🗳️ **Governance Proposal Tally**
+```bash
+# Query: https://rest.cronos.org/cosmos/gov/v1/proposals/22/tally
+```
+**Output Preview:**
+```
+🗳️  PROPOSAL TALLY RESULTS
+========================================
+✅ Yes:     1,234,567 (65.2%)
+❌ No:      456,789 (24.1%)
+⏸️  Abstain: 123,456 (6.5%)
+🚫 Veto:    89,012 (4.7%)
 
-This will query: `https://rest.cronos.org/cosmos/gov/v1beta1/proposals/22/tally`
+📊 Total Votes: 1,903,824
+```
 
-### Checking Account Balances
+### 💰 **Account Balances**
+```bash
+# Query account balances for any Cronos address
+```
+**Output Preview:**
+```
+💰 ACCOUNT BALANCES
+========================================
+🏦 Base Token: 1,000.000000 CRO
+🎯 Staking: 500.000000 CRO
+💎 Other Tokens: 25.500000 USDC
+```
 
-1. Select "Bank & Balances" module
-2. Select "Get account balances" endpoint
-3. Enter the account address
-4. View all token balances for that account
+---
 
-## Available Modules
+## 🏗️ **Available Modules**
 
-### Authentication & Accounts (`auth`)
-- Get account details by address
-- List all accounts
-- Get authentication parameters
+| Module | Emoji | Description | Endpoints |
+|--------|-------|-------------|-----------|
+| **Authentication** | 🔐 | Account information & authentication | 3 endpoints |
+| **Bank & Balances** | 🏦 | Token balances, supply, metadata | 4 endpoints |
+| **Governance** | 🗳️ | Proposals, votes, tallies, deposits | 6 endpoints |
+| **Staking** | ⚡ | Validators, delegations, pool info | 8 endpoints |
+| **Distribution** | 🎁 | Rewards, commission, community pool | 4 endpoints |
+| **Slashing** | ⚠️ | Signing info, slashing parameters | 3 endpoints |
+| **Minting** | 🪙 | Inflation, annual provisions | 3 endpoints |
+| **Tendermint** | 🔗 | Blocks, validators, node info | 5 endpoints |
 
-### Bank & Balances (`bank`)
-- Get account balances
-- Get specific token balance
-- Get total supply
-- Get token metadata
+---
 
-### Governance (`gov`)
-- List proposals
-- Get proposal details
-- Get proposal tally (voting results)
-- Get proposal votes
-- Get proposal deposits
-- Get governance parameters
+## 🎯 **Module Details**
 
-### Staking (`staking`)
-- List validators
-- Get validator details
-- Get delegations
-- Get specific delegation
-- Get unbonding delegations
-- Get redelegations
-- Get staking pool
-- Get staking parameters
+### 🔐 **Authentication & Accounts**
+- 👤 Get account details by address
+- 📋 List all accounts  
+- ⚙️ Get authentication parameters
 
-### Distribution & Rewards (`distribution`)
-- Get delegation rewards
-- Get validator commission
-- Get community pool
-- Get distribution parameters
+### 🏦 **Bank & Balances**
+- 💰 Get account balances
+- 🎯 Get specific token balance
+- 📊 Get total supply
+- 🏷️ Get token metadata
 
-### Slashing (`slashing`)
-- Get signing infos
-- Get validator signing info
-- Get slashing parameters
+### 🗳️ **Governance**
+- 📋 List proposals
+- 📄 Get proposal details
+- 🗳️ Get proposal tally (voting results)
+- 👥 Get proposal votes
+- 💳 Get proposal deposits
+- ⚙️ Get governance parameters
 
-### Minting (`mint`)
-- Get current inflation
-- Get annual provisions
-- Get minting parameters
+### ⚡ **Staking**
+- 🏆 List validators
+- 👤 Get validator details
+- 🔗 Get delegations
+- 🎯 Get specific delegation
+- ⏳ Get unbonding delegations
+- 🔄 Get redelegations
+- 🏊 Get staking pool
+- ⚙️ Get staking parameters
 
-### Tendermint Core (`tendermint`)
-- Get node info
-- Get syncing status
-- Get latest block
-- Get block by height
-- Get validator sets
+### 🎁 **Distribution & Rewards**
+- 🎁 Get delegation rewards
+- 💼 Get validator commission
+- 🏛️ Get community pool
+- ⚙️ Get distribution parameters
 
-## Error Handling
+### ⚠️ **Slashing**
+- 📝 Get signing infos
+- 👤 Get validator signing info
+- ⚙️ Get slashing parameters
 
-The CLI includes comprehensive error handling for:
-- Network connectivity issues
-- Invalid API responses
-- Missing required parameters
-- Invalid user input
+### 🪙 **Minting**
+- 📈 Get current inflation
+- 📊 Get annual provisions
+- ⚙️ Get minting parameters
 
-## Base URL
+### 🔗 **Tendermint Core**
+- 🖥️ Get node info
+- 🔄 Get syncing status
+- 📦 Get latest block
+- 📦 Get block by height
+- 👥 Get validator sets
 
+---
+
+## 🛡️ **Error Handling**
+
+CronosQuery includes comprehensive error handling for:
+
+- 🌐 **Network connectivity issues**
+- ❌ **Invalid API responses**
+- 📝 **Missing required parameters**
+- 🚫 **Invalid user input**
+- ⏰ **Timeout scenarios**
+
+---
+
+## ⚙️ **Configuration**
+
+### 🌐 **Base URL**
 The tool uses `https://rest.cronos.org/` as the base URL for the Cronos EVM chain REST API. This can be modified in the code if needed for different networks.
 
-## Requirements
+### 📦 **Package Installation**
+You can also install CronosQuery as a package:
 
-- Python 3.6+
-- requests library
+```bash
+pip install -e .
+```
 
-## License
+Then run it from anywhere:
+```bash
+cronosquery
+```
 
-This project is open source and available under the MIT License.# cronosquery
+---
+
+## 📋 **Requirements**
+
+- 🐍 **Python 3.6+**
+- 📡 **requests library**
+
+---
+
+## 🤝 **Contributing**
+
+We welcome contributions! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+
+---
+
+## 📄 **License**
+
+This project is open source and available under the [MIT License](LICENSE).
+
+---
+
+## ⭐ **Show Your Support**
+
+If you found CronosQuery helpful, please give it a ⭐ on GitHub!
+
+---
+
+<div align="center">
+
+**Made with ❤️ for the Cronos community**
+
+[🌐 Cronos Website](https://cronos.org) • [📚 Documentation](https://docs.cronos.org) • [💬 Discord](https://discord.gg/cronos)
+
+</div>
