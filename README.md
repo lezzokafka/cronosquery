@@ -213,3 +213,37 @@ If you found CronosQuery helpful, please give it a ⭐ on GitHub!
 [🌐 Cronos Website](https://cronos.org) • [📚 Documentation](https://docs.cronos.org) • [💬 Discord](https://discord.gg/cronos)
 
 </div>
+## 🎯 **Easy Command Access**
+
+After installation, you can use `cronosquery` from anywhere in your terminal!
+
+### **Make it Permanent (One-time setup):**
+```bash
+# Find your Python user base directory
+python3 -m site --user-base
+
+# Add the bin directory to your PATH (works for everyone!)
+echo 'export PATH="$(python3 -m site --user-base)/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+
+# For bash users, use ~/.bashrc instead
+echo 'export PATH="$(python3 -m site --user-base)/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+### **Now you can run:**
+```bash
+# From anywhere in your terminal!
+cronosquery
+```
+
+### **Alternative: Use without PATH setup**
+If you prefer not to modify your PATH, you can always run:
+```bash
+# From the project directory
+python3 cronosquery.py
+
+# Or use the full path to the installed command
+$(python3 -m site --user-base)/bin/cronosquery
+```
+
