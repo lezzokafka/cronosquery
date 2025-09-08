@@ -258,6 +258,16 @@ class CronosCLI:
                     }
                 }
             },
+            "tx": {
+                "name": "Transactions",
+                "endpoints": {
+                    "tx_by_hash": {
+                        "name": "Get transaction by hash",
+                        "path": "cosmos/tx/v1beta1/txs/{txhash}",
+                        "params": ["txhash"]
+                    }
+                }
+            },
             "tendermint": {
                 "name": "Tendermint Core",
                 "endpoints": {
@@ -555,6 +565,8 @@ class CronosCLI:
         # Handle different response types with better formatting
         if "tally" in data:
             return self._format_tally(data["tally"])
+        elif "tx_response" in data:
+            return self._format_tx(data, context)
         elif "balances" in data:
             # Use address-specific formatter if we have address context
             if context and "address" in context:
@@ -780,6 +792,40 @@ class CronosCLI:
         
         return result
 
+    def _format_tx(self, data: Dict[str, Any], context: Dict[str, Any] = None) -> str:
+        """Format transaction information"""
+        tx_response = data.get("tx_response", {})
+        if not tx_response:
+            return json.dumps(data, indent=2, ensure_ascii=False)
+
+        result = "🔎 TRANSACTION\n"
+        result += "=" * 20 + "\n"
+
+        txhash = tx_response.get("txhash", "unknown")
+        height = tx_response.get("height", "unknown")
+        code = tx_response.get("code", 0)
+        raw_log = tx_response.get("raw_log", "")
+        timestamp = tx_response.get("timestamp", tx_response.get("time", "unknown"))
+        gas_wanted = tx_response.get("gas_wanted", "-")
+        gas_used = tx_response.get("gas_used", "-")
+
+        result += f"🆔 Hash:      {txhash}\n"
+        result += f"📏 Height:    {height}\n"
+        result += f"⏰ Time:      {timestamp}\n"
+        result += f"⛽ Gas:       used {gas_used} / wanted {gas_wanted}\n"
+        result += f"✅ Success:   {code == 0}\n"
+
+        if raw_log and code != 0:
+            # Include truncated error log if failed
+            trimmed = raw_log if len(raw_log) <= 200 else raw_log[:200] + "..."
+            result += f"📝 Log:       {trimmed}\n"
+
+        # Add explorer link
+        explorer_links = self.format_explorer_links(transactions=[txhash])
+        result += explorer_links
+
+        return result
+
     def _format_node_info(self, data: Dict[str, Any]) -> str:
         """Format node information"""
         result = "🖥️  NODE INFORMATION\n"
@@ -872,6 +918,8 @@ class CronosCLI:
                         params[param] = self.get_user_input("Enter block height")
                     elif param == "denom":
                         params[param] = self.get_user_input("Enter token denomination")
+                    elif param == "txhash":
+                        params[param] = self.get_user_input("Enter transaction hash")
                     else:
                         params[param] = self.get_user_input(f"Enter {param}")
                 
