@@ -310,6 +310,60 @@ class CronosCLI:
         """Get information about the currently selected chain"""
         return self.chains[self.current_chain]
 
+    def get_explorer_urls(self) -> Dict[str, str]:
+        """Get explorer URLs for the current chain"""
+        if self.current_chain == "evm":
+            return {
+                "base_url": "https://explorer.cronos.org",
+                "address_template": "https://explorer.cronos.org/address/{address}",
+                "transaction_template": "https://explorer.cronos.org/tx/{txid}"
+            }
+        else:  # POS chain
+            return {
+                "base_url": "https://cronos-pos.org/explorer",
+                "address_template": "https://cronos-pos.org/explorer/account/{address}",
+                "transaction_template": "https://cronos-pos.org/explorer/tx/{txid}"
+            }
+
+    def generate_address_explorer_link(self, address: str) -> str:
+        """Generate explorer link for an address"""
+        urls = self.get_explorer_urls()
+        
+        # For EVM chain, convert crc1... addresses to 0x... format for explorer
+        if self.current_chain == "evm" and address.startswith("crc1"):
+            try:
+                evm_address = self.cosmos_to_evm(address)
+                return urls["address_template"].format(address=evm_address)
+            except Exception:
+                # If conversion fails, use original address
+                pass
+        
+        return urls["address_template"].format(address=address)
+
+    def generate_transaction_explorer_link(self, txid: str) -> str:
+        """Generate explorer link for a transaction ID"""
+        urls = self.get_explorer_urls()
+        return urls["transaction_template"].format(txid=txid)
+
+    def format_explorer_links(self, addresses: List[str] = None, transactions: List[str] = None) -> str:
+        """Format explorer links for display"""
+        if not addresses and not transactions:
+            return ""
+        
+        result = "\n🔗 Explorer Links:\n"
+        
+        if addresses:
+            for i, address in enumerate(addresses, 1):
+                link = self.generate_address_explorer_link(address)
+                result += f"   Address {i}: {link}\n"
+        
+        if transactions:
+            for i, txid in enumerate(transactions, 1):
+                link = self.generate_transaction_explorer_link(txid)
+                result += f"   Transaction {i}: {link}\n"
+        
+        return result
+
     def convert_basecro_to_cro(self, amount: str) -> str:
         """Convert basecro amount to CRO units based on current chain"""
         try:
@@ -493,7 +547,7 @@ class CronosCLI:
                 print("\n👋 Goodbye!")
                 sys.exit(0)
 
-    def format_response(self, data: Dict[str, Any]) -> str:
+    def format_response(self, data: Dict[str, Any], context: Dict[str, Any] = None) -> str:
         """Format API response for display with better formatting"""
         if not data:
             return "No data received"
@@ -502,7 +556,11 @@ class CronosCLI:
         if "tally" in data:
             return self._format_tally(data["tally"])
         elif "balances" in data:
-            return self._format_balances(data)
+            # Use address-specific formatter if we have address context
+            if context and "address" in context:
+                return self._format_balances_with_address(data, context["address"])
+            else:
+                return self._format_balances(data)
         elif "proposals" in data:
             return self._format_proposals(data)
         elif "validators" in data:
@@ -510,7 +568,7 @@ class CronosCLI:
         elif "pool" in data:
             return self._format_pool(data)
         elif "rewards" in data:
-            return self._format_rewards(data)
+            return self._format_rewards(data, context)
         elif "commission" in data:
             return self._format_commission(data)
         elif "block" in data:
@@ -565,6 +623,16 @@ class CronosCLI:
             # Use the new formatting function for better token display
             formatted_amount = self.format_token_amount(denom, amount)
             result += f"🪙 {formatted_amount}\n"
+        
+        return result
+
+    def _format_balances_with_address(self, data: Dict[str, Any], address: str) -> str:
+        """Format account balances with explorer link"""
+        result = self._format_balances(data)
+        
+        # Add explorer link for the address
+        explorer_links = self.format_explorer_links(addresses=[address])
+        result += explorer_links
         
         return result
 
@@ -651,7 +719,7 @@ class CronosCLI:
         
         return result
 
-    def _format_rewards(self, data: Dict[str, Any]) -> str:
+    def _format_rewards(self, data: Dict[str, Any], context: Dict[str, Any] = None) -> str:
         """Format delegation rewards"""
         result = "🎁 DELEGATION REWARDS\n"
         result += "=" * 25 + "\n"
@@ -667,6 +735,11 @@ class CronosCLI:
                 result += f"🪙 {formatted_amount}\n"
         else:
             result += "No rewards available"
+        
+        # Add explorer link if we have delegator address
+        if context and "delegator_addr" in context:
+            explorer_links = self.format_explorer_links(addresses=[context["delegator_addr"]])
+            result += explorer_links
         
         return result
 
@@ -809,7 +882,15 @@ class CronosCLI:
                 if result:
                     print("\n✅ Result:")
                     print("-" * 50)
-                    print(self.format_response(result))
+                    
+                    # Create context for explorer links
+                    context = {}
+                    if "address" in params:
+                        context["address"] = params["address"]
+                    if "delegator_addr" in params:
+                        context["delegator_addr"] = params["delegator_addr"]
+                    
+                    print(self.format_response(result, context))
                 else:
                     print("❌ Failed to retrieve data")
                 
