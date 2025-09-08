@@ -1,0 +1,9 @@
+README.md
+cronosquery.py
+setup.py
+cronosquery.egg-info/PKG-INFO
+cronosquery.egg-info/SOURCES.txt
+cronosquery.egg-info/dependency_links.txt
+cronosquery.egg-info/entry_points.txt
+cronosquery.egg-info/requires.txt
+cronosquery.egg-info/top_level.txt

@@ -7,17 +7,39 @@ using their respective REST APIs:
 - Cronos EVM: https://rest.cronos.org/
 - Cronos POS: https://rest.mainnet.crypto.org/
 
+Features:
+- Support for multiple address formats:
+  * Cronos EVM: 0x... (EVM) and crc1... (Cosmos) with automatic conversion
+  * Cronos POS: cro1... (Cosmos) format only
+- Chain selection with EVM as default
+- Runtime chain switching
+- Smart basecro to CRO conversion:
+  * Cronos EVM: 1 CRO = 10^18 basecro
+  * Cronos POS: 1 CRO = 10^8 basecro
+
 Based on the Cosmos SDK modules available in KAVA swagger documentation.
 
-Implements GitHub Issue #2: Add support for Cronos POS
-https://github.com/lezzokafka/cronosquery/issues/2
+Implements:
+- GitHub Issue #1: Add support for Cronos EVM address formats
+  https://github.com/lezzokafka/cronosquery/issues/1
+- GitHub Issue #2: Add support for Cronos POS
+  https://github.com/lezzokafka/cronosquery/issues/2
 """
 
 import requests
 import json
 import sys
+import re
 from typing import Dict, List, Optional, Any
 from urllib.parse import urljoin
+
+try:
+    import bech32
+    BECH32_AVAILABLE = True
+except ImportError:
+    BECH32_AVAILABLE = False
+    print("⚠️  Warning: bech32 library not found. Address conversion will be disabled.")
+    print("   Install with: pip install bech32")
 
 
 class CronosCLI:
@@ -288,6 +310,135 @@ class CronosCLI:
         """Get information about the currently selected chain"""
         return self.chains[self.current_chain]
 
+    def convert_basecro_to_cro(self, amount: str) -> str:
+        """Convert basecro amount to CRO units based on current chain"""
+        try:
+            # Convert to integer
+            basecro_amount = int(amount)
+            
+            # Different conversion rates for different chains
+            if self.current_chain == "evm":
+                # Cronos EVM: 1 CRO = 10^18 basecro
+                cro_amount = basecro_amount / (10 ** 18)
+            elif self.current_chain == "pos":
+                # Cronos POS: 1 CRO = 10^8 basecro
+                cro_amount = basecro_amount / (10 ** 8)
+            else:
+                # Fallback to EVM rate
+                cro_amount = basecro_amount / (10 ** 18)
+            
+            # Format with appropriate decimal places
+            if cro_amount >= 1000:
+                return f"{cro_amount:,.2f} CRO"
+            elif cro_amount >= 1:
+                return f"{cro_amount:,.4f} CRO"
+            else:
+                return f"{cro_amount:.6f} CRO"
+        except (ValueError, TypeError):
+            # If conversion fails, return original amount
+            return f"{amount} basecro"
+
+    def format_token_amount(self, denom: str, amount: str) -> str:
+        """Format token amount with appropriate unit conversion"""
+        # Convert basecro to CRO for better readability
+        if denom.lower() == "basecro":
+            return self.convert_basecro_to_cro(amount)
+        else:
+            # For other tokens, format with commas
+            try:
+                amount_num = int(amount)
+                if amount_num > 1000000:
+                    return f"{amount_num:,} {denom}"
+                else:
+                    return f"{amount_num} {denom}"
+            except (ValueError, TypeError):
+                return f"{amount} {denom}"
+
+    def is_evm_address(self, address: str) -> bool:
+        """Check if address is in EVM format (0x...)"""
+        return address.startswith('0x') and len(address) == 42 and all(c in '0123456789abcdefABCDEF' for c in address[2:])
+
+    def is_cosmos_address(self, address: str) -> bool:
+        """Check if address is in Cosmos format (crc1... or cro1...)"""
+        return (address.startswith('crc1') or address.startswith('cro1')) and len(address) >= 39
+
+    def evm_to_cosmos(self, evm_address: str) -> Optional[str]:
+        """Convert EVM address (0x...) to Cosmos address (crc1...)"""
+        if not BECH32_AVAILABLE:
+            return None
+        
+        try:
+            # Remove 0x prefix and convert to bytes
+            eth_address_bytes = bytes.fromhex(evm_address[2:])
+            
+            # Convert from 8-bit to 5-bit groups
+            bz = bech32.convertbits(eth_address_bytes, 8, 5)
+            
+            # Encode as bech32 with "crc" prefix (for EVM chain)
+            cosmos_address = bech32.bech32_encode("crc", bz)
+            return cosmos_address
+        except Exception as e:
+            print(f"❌ Error converting EVM to Cosmos address: {e}")
+            return None
+
+    def cosmos_to_evm(self, cosmos_address: str) -> Optional[str]:
+        """Convert Cosmos address (crc1...) to EVM address (0x...)"""
+        if not BECH32_AVAILABLE:
+            return None
+        
+        try:
+            # Decode bech32 address
+            _, bz = bech32.bech32_decode(cosmos_address)
+            
+            # Convert from 5-bit to 8-bit groups
+            hexbytes = bytes(bech32.convertbits(bz, 5, 8))
+            
+            # Add 0x prefix
+            evm_address = '0x' + hexbytes.hex()
+            return evm_address
+        except Exception as e:
+            print(f"❌ Error converting Cosmos to EVM address: {e}")
+            return None
+
+    def convert_address_for_chain(self, address: str) -> str:
+        """Convert address to the appropriate format for the current chain"""
+        if self.current_chain == "evm":
+            # For EVM chain, convert EVM addresses to Cosmos format for API calls
+            if self.is_evm_address(address):
+                cosmos_address = self.evm_to_cosmos(address)
+                if cosmos_address:
+                    print(f"🔄 Converted EVM address {address} to Cosmos format: {cosmos_address}")
+                    return cosmos_address
+                else:
+                    print(f"❌ Failed to convert EVM address {address}")
+                    return address
+            elif self.is_cosmos_address(address):
+                # Check if it's the right prefix for EVM chain (crc1...)
+                if address.startswith('crc1'):
+                    print(f"✅ Using Cosmos address: {address}")
+                    return address
+                else:
+                    print(f"⚠️  Address {address} has wrong prefix for EVM chain. Expected crc1...")
+                    return address
+            else:
+                print(f"⚠️  Unknown address format: {address}")
+                return address
+        else:
+            # For POS chain, only accept Cosmos addresses with cro1... prefix
+            if self.is_cosmos_address(address):
+                if address.startswith('cro1'):
+                    print(f"✅ Using Cosmos address: {address}")
+                    return address
+                else:
+                    print(f"⚠️  Address {address} has wrong prefix for POS chain. Expected cro1...")
+                    return address
+            elif self.is_evm_address(address):
+                print(f"❌ EVM addresses (0x...) are not supported on POS chain. Please use Cosmos address (cro1...)")
+                return address  # Return as-is, will likely cause API error
+            else:
+                print(f"⚠️  Unknown address format: {address}")
+                return address
+
     def make_request(self, endpoint: str, params: Dict[str, str] = None) -> Optional[Dict[str, Any]]:
         """Make a request to the Cronos REST API"""
         try:
@@ -411,17 +562,9 @@ class CronosCLI:
             denom = balance.get("denom", "unknown")
             amount = balance.get("amount", "0")
             
-            # Format large numbers
-            try:
-                amount_num = int(amount)
-                if amount_num > 1000000:
-                    amount_str = f"{amount_num:,}"
-                else:
-                    amount_str = str(amount_num)
-            except:
-                amount_str = amount
-            
-            result += f"🪙 {denom}: {amount_str}\n"
+            # Use the new formatting function for better token display
+            formatted_amount = self.format_token_amount(denom, amount)
+            result += f"🪙 {formatted_amount}\n"
         
         return result
 
@@ -520,7 +663,8 @@ class CronosCLI:
             for reward in total:
                 denom = reward.get("denom", "unknown")
                 amount = reward.get("amount", "0")
-                result += f"🪙 {denom}: {amount}\n"
+                formatted_amount = self.format_token_amount(denom, amount)
+                result += f"🪙 {formatted_amount}\n"
         else:
             result += "No rewards available"
         
@@ -538,7 +682,8 @@ class CronosCLI:
             for comm in commission_amount:
                 denom = comm.get("denom", "unknown")
                 amount = comm.get("amount", "0")
-                result += f"🪙 {denom}: {amount}\n"
+                formatted_amount = self.format_token_amount(denom, amount)
+                result += f"🪙 {formatted_amount}\n"
         else:
             result += "No commission data"
         
@@ -625,15 +770,31 @@ class CronosCLI:
                 
                 for param in endpoint_info["params"]:
                     if param == "address":
-                        params[param] = self.get_user_input("Enter address")
+                        if self.current_chain == "evm":
+                            address = self.get_user_input("Enter address (supports both 0x... and crc1... formats)")
+                        else:
+                            address = self.get_user_input("Enter address (cro1... format)")
+                        params[param] = self.convert_address_for_chain(address)
                     elif param == "proposal_id":
                         params[param] = self.get_user_input("Enter proposal number")
                     elif param == "validator_addr":
-                        params[param] = self.get_user_input("Enter validator address")
+                        if self.current_chain == "evm":
+                            validator_addr = self.get_user_input("Enter validator address (supports both 0x... and crc1... formats)")
+                        else:
+                            validator_addr = self.get_user_input("Enter validator address (cro1... format)")
+                        params[param] = self.convert_address_for_chain(validator_addr)
                     elif param == "delegator_addr":
-                        params[param] = self.get_user_input("Enter delegator address")
+                        if self.current_chain == "evm":
+                            delegator_addr = self.get_user_input("Enter delegator address (supports both 0x... and crc1... formats)")
+                        else:
+                            delegator_addr = self.get_user_input("Enter delegator address (cro1... format)")
+                        params[param] = self.convert_address_for_chain(delegator_addr)
                     elif param == "cons_address":
-                        params[param] = self.get_user_input("Enter consensus address")
+                        if self.current_chain == "evm":
+                            cons_addr = self.get_user_input("Enter consensus address (supports both 0x... and crc1... formats)")
+                        else:
+                            cons_addr = self.get_user_input("Enter consensus address (cro1... format)")
+                        params[param] = self.convert_address_for_chain(cons_addr)
                     elif param == "height":
                         params[param] = self.get_user_input("Enter block height")
                     elif param == "denom":
