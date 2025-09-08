@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
 """
-Cronos EVM Chain Data Query CLI Tool
+Cronos Chain Data Query CLI Tool
 
-This CLI tool allows users to interactively query data from the Cronos EVM chain
-using the REST API at https://rest.cronos.org/
+This CLI tool allows users to interactively query data from both Cronos EVM and POS chains
+using their respective REST APIs:
+- Cronos EVM: https://rest.cronos.org/
+- Cronos POS: https://rest.mainnet.crypto.org/
 
 Based on the Cosmos SDK modules available in KAVA swagger documentation.
+
+Implements GitHub Issue #2: Add support for Cronos POS
+https://github.com/lezzokafka/cronosquery/issues/2
 """
 
 import requests
@@ -23,6 +28,20 @@ class CronosCLI:
             'Content-Type': 'application/json',
             'Accept': 'application/json'
         })
+        
+        # Define available chains (EVM first as default)
+        self.chains = {
+            "evm": {
+                "name": "Cronos EVM Chain",
+                "base_url": "https://rest.cronos.org/",
+                "description": "Cronos EVM-compatible chain for smart contracts and DeFi (DEFAULT)"
+            },
+            "pos": {
+                "name": "Cronos POS Chain", 
+                "base_url": "https://rest.mainnet.crypto.org/",
+                "description": "Cronos Proof-of-Stake chain for Cosmos SDK modules"
+            }
+        }
         
         # Define available modules and their endpoints based on Cosmos SDK
         # Note: Using correct API versions based on actual Cronos implementation
@@ -248,6 +267,26 @@ class CronosCLI:
                 }
             }
         }
+        
+        # Set default chain to EVM
+        self.current_chain = "evm"
+        self._update_base_url()
+
+    def _update_base_url(self):
+        """Update the base URL based on current chain selection"""
+        self.base_url = self.chains[self.current_chain]["base_url"]
+
+    def switch_chain(self, chain_key: str):
+        """Switch to a different chain"""
+        if chain_key in self.chains:
+            self.current_chain = chain_key
+            self._update_base_url()
+            return True
+        return False
+
+    def get_current_chain_info(self) -> Dict[str, str]:
+        """Get information about the currently selected chain"""
+        return self.chains[self.current_chain]
 
     def make_request(self, endpoint: str, params: Dict[str, str] = None) -> Optional[Dict[str, Any]]:
         """Make a request to the Cronos REST API"""
@@ -534,33 +573,53 @@ class CronosCLI:
         version = application_version.get("version", "unknown")
         name = application_version.get("name", "unknown")
         
+        # Get current chain name
+        chain_name = self.get_current_chain_info()["name"]
+        
         result += f"📦 Name:    {name}\n"
         result += f"🏷️  Version: {version}\n"
-        result += f"🌐 Network: Cronos EVM"
+        result += f"🌐 Network: {chain_name}"
         
         return result
 
     def run(self):
         """Main CLI loop"""
-        print("🚀 Welcome to Cronos EVM Chain Data Query CLI")
+        print("🚀 Welcome to Cronos Chain Data Query CLI")
         print("=" * 50)
-        print("This tool allows you to query data from the Cronos EVM chain")
-        print("Base URL:", self.base_url)
+        print("This tool allows you to query data from Cronos EVM and POS chains")
+        
+        # Step 1: Select chain (with EVM as default)
+        chain_options = {}
+        for key, value in self.chains.items():
+            if key == "evm":
+                chain_options[key] = f"⭐ {value['name']} - {value['description']}"
+            else:
+                chain_options[key] = f"   {value['name']} - {value['description']}"
+        
+        selected_chain = self.display_menu("Which chain would you like to query? (EVM is recommended)", chain_options)
+        
+        if self.switch_chain(selected_chain):
+            chain_info = self.get_current_chain_info()
+            print(f"\n✅ Selected: {chain_info['name']}")
+            print(f"🌐 Base URL: {self.base_url}")
+        else:
+            print("❌ Invalid chain selection")
+            return
         
         while True:
             try:
-                # Step 1: Select module
+                # Step 2: Select module
                 module_options = {key: value["name"] for key, value in self.modules.items()}
                 selected_module = self.display_menu("Which module would you like to check?", module_options)
                 
-                # Step 2: Select endpoint within module
+                # Step 3: Select endpoint within module
                 endpoint_options = {key: value["name"] for key, value in self.modules[selected_module]["endpoints"].items()}
                 selected_endpoint = self.display_menu(
                     f"What would you like to check in {self.modules[selected_module]['name']}?", 
                     endpoint_options
                 )
                 
-                # Step 3: Get required parameters
+                # Step 4: Get required parameters
                 endpoint_info = self.modules[selected_module]["endpoints"][selected_endpoint]
                 params = {}
                 
@@ -582,7 +641,7 @@ class CronosCLI:
                     else:
                         params[param] = self.get_user_input(f"Enter {param}")
                 
-                # Step 4: Make request and display result
+                # Step 5: Make request and display result
                 print(f"\n🔄 Making request to {endpoint_info['path']}...")
                 result = self.make_request(endpoint_info["path"], params)
                 
@@ -593,9 +652,30 @@ class CronosCLI:
                 else:
                     print("❌ Failed to retrieve data")
                 
-                # Ask if user wants to continue
-                continue_choice = input("\nWould you like to make another query? (y/n): ").strip().lower()
-                if continue_choice not in ['y', 'yes']:
+                # Ask if user wants to continue or switch chains
+                print(f"\nCurrent chain: {self.get_current_chain_info()['name']}")
+                continue_choice = input("\nOptions: (q)uery again, (s)witch chain, (e)xit: ").strip().lower()
+                if continue_choice in ['e', 'exit']:
+                    print("👋 Goodbye!")
+                    break
+                elif continue_choice in ['s', 'switch']:
+                    # Switch chain
+                    chain_options = {}
+                    for key, value in self.chains.items():
+                        if key == "evm":
+                            chain_options[key] = f"⭐ {value['name']} - {value['description']}"
+                        else:
+                            chain_options[key] = f"   {value['name']} - {value['description']}"
+                    
+                    selected_chain = self.display_menu("Which chain would you like to query? (EVM is recommended)", chain_options)
+                    
+                    if self.switch_chain(selected_chain):
+                        chain_info = self.get_current_chain_info()
+                        print(f"\n✅ Switched to: {chain_info['name']}")
+                        print(f"🌐 Base URL: {self.base_url}")
+                    else:
+                        print("❌ Invalid chain selection")
+                elif continue_choice not in ['q', 'query', 'y', 'yes', '']:
                     print("👋 Goodbye!")
                     break
                     
